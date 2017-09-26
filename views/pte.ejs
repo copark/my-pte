@@ -1,0 +1,205 @@
+<!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.0//EN" "http://www.wapforum.org/DTD/xhtml-mobile10.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport"
+        content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width" />
+    <head>
+        <title> PTE Exam </title>
+        <link rel="stylesheet" type="text/css" href="/stylesheets/style.css" media="all">
+        <script src="javascripts/common.js"></script?
+<script>
+
+// !!! IMPORTANT MUST UPDATE FILES into images directory !!!
+// CUSTOMIZE AREA
+const FILE_NUM = 10;
+function initImages_() {
+    console.log('initImages');
+    const fs = require('fs');
+    const dir = './images/';
+    var files = fs.readdirSync(dir);
+    for (var i in files) {
+        images.push(dir + '/' + files[i]);
+        console.log(files[i]);
+    }
+}
+
+const INVALID = -1;
+const WAITING = 25;
+const RUNNING = 40;
+const PROGRESS_BEGIN = 0;
+const PGORESS_ALL = 100;
+
+//var images = [];
+var cur = INVALID;
+var waiting = WAITING;
+var running = INVALID;
+var testTimer = "";
+
+
+function init() {
+    initCurrent(INVALID);
+    initWait(WAITING);
+    initRun(INVALID);
+
+    updateId(cur);
+    updateInformation("");
+    updateProgress(0);
+
+    if (!isEmpty(testTimer)) {
+        clearTimeout(testTimer);
+    }
+}
+
+function initCurrent(value) {
+    cur = value;
+}
+
+function initWait(value) {
+    waiting = value
+}
+
+function initRun(value) {
+    running = value;
+}
+
+function moveNext() {
+    cur = cur + 1;
+    if (cur >= images.length) {
+        alert("모든 테스트가 종료되었습니다.");
+        init();
+        return;
+    }
+
+    initWait(WAITING);
+    initRun(INVALID);
+    if (!isEmpty(testTimer)) {
+        clearTimeout(testTimer);
+    }
+
+    updateId("총 " + (images.length) + "중 " + (cur+1) + "번째 테스트 입니다.");
+    updateImage(images[cur]);
+    updateProgress(PROGRESS_BEGIN);
+    updateInformation("시작까지 " + waiting + "초 남았습니다.");
+    testTimer = setTimeout(runTest, 1000);
+}
+
+function updateImage(value) {
+    var image = document.getElementById('image');
+    if (isEmpty(image)) {
+        return;
+    }
+    if (value.startsWith("http")) {
+        image.src = value;
+    } else {
+        image.src = "images/" + value;
+    }
+}
+
+function updateId(value) {
+    if (value < 0 ) {
+        document.getElementById('testId').innerHTML = "";
+        return;
+    }
+
+    document.getElementById('testId').innerHTML = value;
+}
+
+function updateInformation(value) {
+    document.getElementById('information').innerHTML = value;
+}
+
+function updateProgress(value) {
+    console.log('updateProgress' + value);
+    document.getElementById('bar').style.width = value + '%';
+}
+
+function handleWait() {
+    if (waiting > 1) {
+        initWait(waiting - 1);
+        updateInformation("시작까지 " + waiting + "초 남았습니다.");
+        testTimer = setTimeout(runTest, 1000);
+        return true;
+    }
+
+    return false;
+}
+
+function handleRun() {
+    if (running >= RUNNING) {
+        updateProgress(100);
+        return false;
+    }
+
+    initRun(running + 1);
+    if (running == 0) {
+        playSound();
+    }
+
+    updateInformation(running + "초 진행 중 입니다.");
+    var progress = running * (100 / RUNNING);
+    updateProgress(progress)
+    testTimer = setTimeout(runTest, 1000);
+    return true;
+}
+
+function runTest() {
+    if (handleWait()) {
+        return;
+    }
+
+    if (handleRun()) {
+        return;
+    }
+
+    initWait(WAITING);
+    initRun(0);
+}
+
+function isEmpty(value) {
+    if (value == "" || value == null || value == undefined) {
+       return true;
+    }
+    return false;
+}
+
+function testStart() {
+    moveNext();
+}
+
+function testReset() {
+    init();
+}
+
+function playSound() {
+    var sound = document.getElementById("audio");
+    sound.play();
+}
+    </script>
+    </head>
+    <body>
+        <div id="left">
+            <form name="image_form">
+                <img id="image" src="" />
+            </form>
+        </div>
+
+        <div id="right">
+            <form id="form_exam">
+                <p><label class="description" id="testId"></label>
+                <p><label class="description" id="information"></label>
+
+                <div id="progress">
+                    <div id="bar"></div>
+                </div>
+
+                <p><input type="button" id="start" value="시작" onclick="testStart()">
+                <p><input type="button" id="reset" value="초기화" onclick="testReset()">
+
+                <p><audio id="audio" src="./audios/beep.wav" autostart="false" ></audio>
+        </form>
+        </div>
+    </body>
+</html>
+
+

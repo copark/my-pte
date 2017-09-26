@@ -1,0 +1,253 @@
+<!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.0//EN" "http://www.wapforum.org/DTD/xhtml-mobile10.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport"
+        content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width" />
+    <head>
+        <title> PTE Exam </title>
+        <link rel="stylesheet" type="text/css" href="/stylesheets/style.css" media="all">
+        <script src="javascripts/lib/jquery-1.11.0.min.js"></script>
+        <script src="javascripts/lib/jquery.tmpl.js"></script>
+        <script src="javascripts/common.js"></script>
+<script>
+
+// !!! IMPORTANT MUST UPDATE FILES into images directory !!!
+
+const INVALID = -1;
+const WAITING = 25;
+const RUNNING = 40;
+const PROGRESS_BEGIN = 0;
+const PROGRESS_ALL = 100;
+
+const SEC = 1000;
+
+var images = [];
+var cur = INVALID;
+var waiting = WAITING;
+var running = INVALID;
+var defaultTimer = "";
+
+function initImages() {
+    console.log('initImages');
+
+    $.ajax({
+        url: "initImages",
+        type: "post",
+        dataType: "json",
+        success: function(res) {
+            images = [];
+            console.log("response initImages = " + res);
+            images = JSON.parse(res);
+            init();
+        }
+    });
+}
+
+function init() {
+    initCurrent(INVALID);
+    initWait(WAITING);
+    initRun(INVALID);
+
+    updateId(cur);
+    updateImage("");
+
+}
+
+function initCurrent(value) {
+    cur = value;
+}
+
+function initWait(value) {
+    waiting = value
+}
+
+function initRun(value) {
+    running = value;
+}
+
+function moveNext() {
+    cur = cur + 1;
+    if (cur >= images.length) {
+        alert("모든 테스트가 종료되었습니다.");
+        init();
+        return;
+    }
+
+    initWait(WAITING);
+    initRun(INVALID);
+    if (!isEmpty(defaultTimer)) {
+        clearTimeout(defaultTimer);
+    }
+
+    updateId(cur);
+    updateImage(images[cur]);
+}
+
+function updateImage(value) {
+    var image = document.getElementById('image');
+    if (isEmpty(image)) {
+        return;
+    }
+    console.log("updateImage " + value);
+
+    if (value.startsWith("http")) {
+        image.src = value;
+    } else {
+        if (isEmpty(value)) {
+            image.src = value;
+        } else {
+            image.src = value.substr(7);
+        }
+        if (image.complete) {
+            onImgLoaded();
+        } else {
+            image.addEventListener('load', onImgLoaded);
+            image.addEventListener('error', onImgError);
+        }
+    }
+}
+
+function updateId(value) {
+    var msg = String.format("총 {0}개 중 {1}번째 테스트 입니다.",
+            images.length, (value+1));
+    document.getElementById('testId').innerHTML = msg;
+}
+
+function updateView(id, value) {
+    document.getElementById(id).innerHTML = value;
+}
+
+function updateButton(id, value) {
+    document.getElementById(id).value = value;
+}
+
+function updateProgress(value) {
+    document.getElementById('bar').style.width = value + '%';
+}
+
+function handleWait() {
+    if (waiting > 1) {
+        initWait(waiting - 1);
+        updateView('information', "시작까지 " + waiting + "초 남았습니다.");
+        mySetTimeout(runTest, SEC);
+        return true;
+    }
+
+    return false;
+}
+
+function handleRun() {
+    if (running >= RUNNING) {
+        updateProgress(PROGRESS_ALL);
+        return false;
+    }
+
+    initRun(running + 1);
+    if (running == 0) {
+        playSound();
+    }
+
+    updateView('information', running + "초 진행 중 입니다.");
+    var progress = running * (PROGRESS_ALL / RUNNING);
+    updateProgress(progress)
+    mySetTimeout(runTest, SEC);
+    return true;
+}
+
+function runTest() {
+    if (handleWait()) {
+        return;
+    }
+
+    if (handleRun()) {
+        return;
+    }
+
+    initWait(WAITING);
+    initRun(0);
+}
+
+function isEmpty(value) {
+    if (value == "" || value == null || value == undefined) {
+       return true;
+    }
+    return false;
+}
+
+function testStart() {
+    moveNext();
+}
+
+function testReset() {
+    init();
+}
+
+function playSound() {
+    var sound = document.getElementById("audio");
+    sound.play();
+}
+
+function onImgLoaded() {
+    console.log("onImgLoaded");
+    nextProcess();
+}
+
+function onImgError() {
+    console.log("onImgError");
+    nextProcess();
+}
+
+function mySetTimeout(func, timeout) {
+    if (!isEmpty(defaultTimer)) {
+        clearTimeout(defaultTimer);
+    }
+
+    if (!isEmpty(func)) {
+        defaultTimer = setTimeout(func, timeout);
+    }
+}
+
+function nextProcess() {
+    if (cur != INVALID) {
+        updateProgress(PROGRESS_BEGIN);
+        updateView('information', '시작까지 ' + waiting + '초 남았습니다.');
+        updateButton('start', '다음');
+        mySetTimeout(runTest, SEC);
+    } else {
+        updateProgress(0);
+        updateView('information', '시작까지 ' + waiting + '초 남았습니다.');
+        updateButton('start', '시작');
+        mySetTimeout("", 0);
+    }
+}
+
+</script>
+    </head>
+
+    <body onload="initImages()">
+        <div id="left">
+            <form name="image_form">
+                <img id="image" src="" />
+            </form>
+        </div>
+
+        <div id="right">
+            <form id="form_exam">
+                <p><label class="description" id="testId"></label>
+                <p><label class="description" id="information"></label>
+
+                <div id="progress">
+                    <div id="bar"></div>
+                </div>
+
+                <p><input type="button" id="start" value="시작" onclick="testStart()">
+                <p><input type="button" id="reset" value="초기화" onclick="testReset()">
+
+                <p><audio id="audio" src="./audios/beep.wav" autostart="false" ></audio>
+        </form>
+        </div>
+    </body>
+</html>
+
+
