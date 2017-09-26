@@ -19,11 +19,19 @@ const WAITING = 25;
 const RUNNING = 40;
 const PROGRESS_BEGIN = 0;
 const PROGRESS_ALL = 100;
-
 const SEC = 1000;
 
+const TEXT_START = "시작";
+const TEXT_STOP = "일시중지";
+const TEXT_RESUME = "계속";
+const TEXT_NEXT = "다음";
+
+const STATE_IDLE = 0;
+const STATE_RUNNING = 1;
+const STATE_PAUSED = 2;
+
 var images = [];
-var cur = INVALID;
+var currentTest = INVALID;
 var waiting = WAITING;
 var running = INVALID;
 var defaultTimer = "";
@@ -39,23 +47,26 @@ function initImages() {
             images = [];
             console.log("response initImages = " + res);
             images = JSON.parse(res);
-            init();
+            init(INVALID);
         }
     });
 }
 
-function init() {
-    initCurrent(INVALID);
+function init(c) {
+    initCurrent(c);
     initWait(WAITING);
     initRun(INVALID);
+    mySetTimeout("", 0);
 
-    updateId(cur);
-    updateImage("");
-
+    if (c == INVALID) {
+        updateButton('start', TEXT_START);
+    }
+    updateId(c);
+    updateImage(c);
 }
 
 function initCurrent(value) {
-    cur = value;
+    currentTest = value;
 }
 
 function initWait(value) {
@@ -66,22 +77,35 @@ function initRun(value) {
     running = value;
 }
 
-function moveNext() {
-    cur = cur + 1;
-    if (cur >= images.length) {
+function moveNext(next) {
+    if (next >= images.length) {
         alert("모든 테스트가 종료되었습니다.");
-        init();
+        init(INVALID);
         return;
     }
 
+    initCurrent(next);
     initWait(WAITING);
     initRun(INVALID);
-    if (!isEmpty(defaultTimer)) {
-        clearTimeout(defaultTimer);
-    }
+    mySetTimeout("", 0);
 
-    updateId(cur);
-    updateImage(images[cur]);
+    updateButton('start', TEXT_STOP);
+    updateId(next);
+    updateImage(next);
+}
+
+function getState() {
+    var cmd = getValue('start');
+    var s = STATE_IDLE;
+    if (cmd == TEXT_START) {
+        s = STATE_IDLE;
+    } else if (cmd == TEXT_STOP) {
+        s = STATE_RUNNING;
+    } else if (cmd == TEXT_RESUME) {
+        s = STATE_PAUSED;
+    } 
+    console.log('getState ' + s);
+    return s;
 }
 
 function updateImage(value) {
@@ -89,22 +113,20 @@ function updateImage(value) {
     if (isEmpty(image)) {
         return;
     }
-    console.log("updateImage " + value);
 
-    if (value.startsWith("http")) {
-        image.src = value;
+    var res = images[value];
+    if (isEmpty(res)) {
+        image.src = res;
+        return;
+    }
+    
+    image.src = res.substr(7);
+
+    if (image.complete) {
+        onImgLoaded();
     } else {
-        if (isEmpty(value)) {
-            image.src = value;
-        } else {
-            image.src = value.substr(7);
-        }
-        if (image.complete) {
-            onImgLoaded();
-        } else {
-            image.addEventListener('load', onImgLoaded);
-            image.addEventListener('error', onImgError);
-        }
+        image.addEventListener('load', onImgLoaded);
+        image.addEventListener('error', onImgError);
     }
 }
 
@@ -124,6 +146,10 @@ function updateButton(id, value) {
 
 function updateProgress(value) {
     document.getElementById('bar').style.width = value + '%';
+}
+
+function getValue(id) {
+    return document.getElementById(id).value;
 }
 
 function handleWait() {
@@ -175,12 +201,37 @@ function isEmpty(value) {
     return false;
 }
 
+function isValid(value) { 
+    if (value >= 0 && value < images.length) {
+        return true;
+    }
+    return false;
+}
+
 function testStart() {
-    moveNext();
+    var cmd = getValue('start');
+    if (cmd == TEXT_START) {
+        var c = getValue('current');
+        if (isEmpty(c) || !isValid(c)) {
+            alert('유효한값을 입력하세요');
+            return;
+        }
+
+        moveNext(Number(c));
+    } else if (cmd == TEXT_STOP) {
+        init(currentTest);
+        updateButton('start', TEXT_RESUME);
+    } else if (cmd == TEXT_RESUME) {
+        moveNext(currentTest);
+    }
+}
+
+function testNext() {
+    moveNext(currentTest+1);
 }
 
 function testReset() {
-    init();
+    init(INVALID);
 }
 
 function playSound() {
@@ -190,12 +241,12 @@ function playSound() {
 
 function onImgLoaded() {
     console.log("onImgLoaded");
-    nextProcess();
+    nextProcess(currentTest);
 }
 
 function onImgError() {
     console.log("onImgError");
-    nextProcess();
+    nextProcess(INVALID);
 }
 
 function mySetTimeout(func, timeout) {
@@ -208,16 +259,18 @@ function mySetTimeout(func, timeout) {
     }
 }
 
-function nextProcess() {
-    if (cur != INVALID) {
+function nextProcess(test) {
+    if (test != INVALID) {
         updateProgress(PROGRESS_BEGIN);
         updateView('information', '시작까지 ' + waiting + '초 남았습니다.');
-        updateButton('start', '다음');
-        mySetTimeout(runTest, SEC);
+        if (getState() == STATE_RUNNING) {
+            mySetTimeout(runTest, SEC);
+        } else {
+            mySetTimeout("", 0);
+        }
     } else {
         updateProgress(0);
         updateView('information', '시작까지 ' + waiting + '초 남았습니다.');
-        updateButton('start', '시작');
         mySetTimeout("", 0);
     }
 }
@@ -241,7 +294,9 @@ function nextProcess() {
                     <div id="bar"></div>
                 </div>
 
+                <p><input type="text" id="current" value="0">
                 <p><input type="button" id="start" value="시작" onclick="testStart()">
+                <p><input type="button" id="next" value="다음" onclick="testNext()">
                 <p><input type="button" id="reset" value="초기화" onclick="testReset()">
 
                 <p><audio id="audio" src="./audios/beep.wav" autostart="false" ></audio>
@@ -249,5 +304,3 @@ function nextProcess() {
         </div>
     </body>
 </html>
-
-
