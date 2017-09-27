@@ -44,9 +44,9 @@ function initImages() {
         type: "post",
         dataType: "json",
         success: function(res) {
-            images = [];
-            console.log("response initImages = " + res);
             images = JSON.parse(res);
+            console.log("response initImages = " + images);
+
             init(INVALID);
         }
     });
@@ -172,6 +172,7 @@ function handleRun() {
     initRun(running + 1);
     if (running == 0) {
         playSound();
+        return true;
     }
 
     updateView('information', running + "초 진행 중 입니다.");
@@ -236,7 +237,21 @@ function testReset() {
 
 function playSound() {
     var sound = document.getElementById("audio");
+    sound.addEventListener('play', onPlay);
+    sound.addEventListener('ended', onPlayEnded);
     sound.play();
+}
+
+function onPlay() {
+    console.log("onPlay");
+    updateView('information', running + "초 진행 중 입니다.");
+    var progress = running * (PROGRESS_ALL / RUNNING);
+    updateProgress(progress)
+    mySetTimeout(runTest, SEC);
+}
+
+function onPlayEnded() {
+    console.log("onPlayEnded");
 }
 
 function onImgLoaded() {
