@@ -244,14 +244,14 @@ function playSound() {
 
 function onPlay() {
     console.log("onPlay");
-    updateView('information', running + "초 진행 중 입니다.");
-    var progress = running * (PROGRESS_ALL / RUNNING);
-    updateProgress(progress)
-    mySetTimeout(runTest, SEC);
 }
 
 function onPlayEnded() {
     console.log("onPlayEnded");
+    updateView('information', running + "초 진행 중 입니다.");
+    var progress = running * (PROGRESS_ALL / RUNNING);
+    updateProgress(progress)
+    mySetTimeout(runTest, SEC);
 }
 
 function onImgLoaded() {
